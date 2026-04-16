@@ -1,0 +1,112 @@
+<!-- CONTENEDOR PRINCIPAL -->
+<div class="min-h-[calc(100vh-4rem)] bg-[#78aee3] px-3 sm:px-6 py-6 sm:py-8">
+  <div class="bg-white shadow-xl rounded-2xl p-4 sm:p-6">
+
+    <!-- CONTENEDOR DEL GRID / TABLA -->
+    <div class="overflow-auto rounded-lg border border-gray-200 shadow-sm">
+
+      <div
+        class="grid"
+        [style.gridTemplateColumns]="'250px repeat(' + totalSubColumnasVisibles + ', 180px)'"
+      >
+
+        <!-- Sticky esquina superior izquierda (fila 1) -->
+        <div class="sticky left-0 top-0 z-40 bg-white border-b border-r border-gray-300 h-14"></div>
+
+        <!-- HEADER NIVEL 1: TITULO H (PROCESOS) -->
+        @for (grupo of gruposColumnasVisibles; track grupo.tituloH.idMatrizTituloH) {
+          <div
+            class="sticky top-0 z-30 h-14 flex items-center justify-center
+                   text-white font-semibold border-b border-l border-gray-300
+                   bg-linear-to-r from-[#4aa8ff] to-[#1e88e5]
+                   cursor-pointer hover:opacity-90 transition"
+            [style.gridColumn]="'span ' + grupo.canales.length"
+            (click)="abrirModalTituloH(grupo.tituloH)"
+            title="Ver documentos del proceso: {{ grupo.tituloH.nombre }}"
+          >
+            {{ grupo.tituloH.nombre }}
+          </div>
+        }
+
+        <!-- Sticky esquina superior izquierda (fila 2) -->
+        <div class="sticky left-0 top-14 z-40 bg-white border-b border-r border-gray-300 h-12"></div>
+
+        <!-- HEADER NIVEL 2: CANALES -->
+        @for (sub of subColumnasVisibles; track (sub.tituloH.idMatrizTituloH + '-' + sub.canal.idMatrizCanal)) {
+          <div
+            class="sticky top-14 z-30 h-12 flex items-center justify-center
+                   text-white font-medium border-b border-l border-gray-300
+                   bg-linear-to-r from-[#4aa8ff] to-[#1e88e5]
+                   cursor-pointer hover:opacity-90 transition"
+            (click)="abrirModalColumna(sub)"
+            title="Ver documentos de {{ sub.tituloH.nombre }} / {{ sub.canal.nombre }}"
+          >
+            {{ sub.canal.nombre }}
+          </div>
+        }
+
+        <!-- FILAS + CELDAS -->
+        @for (fila of filasVisibles; track fila.idMatrizTituloV) {
+
+          <!-- Fila (Servicio) -->
+          <div
+            class="sticky left-0 z-20 bg-white border-r border-b border-gray-300
+                   h-12 flex items-center gap-2 px-3 font-medium text-gray-700
+                   cursor-pointer hover:bg-blue-50 transition"
+            (click)="abrirModalFila(fila)"
+            title="Ver documentos generales de {{ fila.nombre }}"
+          >
+            {{ fila.nombre }}
+          </div>
+
+          <!-- Celdas -->
+          @for (sub of subColumnasVisibles; track (sub.tituloH.idMatrizTituloH + '-' + sub.canal.idMatrizCanal)) {
+            @let celda = getCelda(fila, sub);
+            @let tieneAcceso = celdaTieneAcceso(celda);
+
+            <div
+              class="h-12 flex items-center justify-center border-b border-l border-gray-200 transition"
+              [class.hover:bg-blue-50]="!!celda && tieneAcceso"
+              [class.cursor-pointer]="!!celda && tieneAcceso"
+              [class.opacity-40]="!celda"
+              [class.opacity-50]="!!celda && !tieneAcceso"
+              [class.cursor-not-allowed]="!!celda && !tieneAcceso"
+              (click)="celda && tieneAcceso && abrirModal(celda)"
+              title="{{
+                !celda
+                  ? 'Celda no existe en BD'
+                  : (tieneAcceso ? 'Ver documentos' : 'Sin acceso a esta posición')
+              }}"
+            >
+              <span
+                class="text-xl"
+                [class.text-blue-600]="!!celda && tieneAcceso"
+                [class.text-blue-800]="!!celda && tieneAcceso"
+                [class.text-gray-400]="!!celda && !tieneAcceso"
+                [class.text-gray-300]="!celda"
+              >
+                📄
+              </span>
+            </div>
+          }
+        }
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+@if (mostrarModal && celdaSeleccionada) {
+  <app-modal-documentos
+    [celda]="celdaSeleccionada"
+    (cerrar)="cerrarModal()">
+  </app-modal-documentos>
+}
+
+<!-- FOOTER FIJO -->
+<footer class="fixed bottom-0 left-0 w-full bg-white text-gray-600 text-center py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-50">
+  <p class="text-sm font-medium">
+    © Bitwan - Gestión Documental
+  </p>
+</footer>

@@ -1,0 +1,147 @@
+<!-- HEADER CORPORATIVO BITWAN (ÚNICO PARA TODAS LAS PÁGINAS) -->
+<header class="w-full bg-white shadow-md fixed top-0 left-0 z-50">
+  <div class="w-full px-3 sm:px-6 h-16 flex items-center justify-between relative">
+
+    <!-- IZQUIERDA: Menú + Logo -->
+    <div class="flex items-center gap-2 sm:gap-3 min-w-[120px] relative z-10">
+      <button
+        type="button"
+        class="relative z-[90] p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+        title="Menú"
+        (click)="$event.stopPropagation(); toggleMenu()"
+      >
+        ☰
+      </button>
+
+      <img
+        src="https://static.wixstatic.com/media/632b1b_e49e5ef57a654a5eae380fe6ee1594d6~mv2.webp"
+        alt="Bitwan Logo"
+        class="h-9 sm:h-10 w-auto"
+      />
+    </div>
+
+    <!-- CENTRO: Título dinámico -->
+    <div class="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none">
+      <h2 class="block md:hidden text-lg font-bold text-[#515353]">
+        {{ titulo.small }}
+      </h2>
+
+      <h2 class="hidden md:block text-xl lg:text-2xl font-bold text-[#515353] whitespace-nowrap">
+        {{ titulo.large }}
+      </h2>
+    </div>
+
+    <!-- DERECHA: Sesión + Logout -->
+    <div class="flex items-center gap-2 sm:gap-4 text-gray-700 font-medium min-w-[150px] justify-end relative z-10">
+      <span class="hidden sm:block text-sm text-gray-500">
+        {{ sesionActivaTexto }}
+      </span>
+
+      <button
+        (click)="logout()"
+        class="flex items-center gap-2 text-sm px-2.5 sm:px-3 py-1.5
+               rounded-lg border border-gray-300
+               hover:bg-red-50 hover:text-red-600 transition"
+        title="Cerrar sesión"
+      >
+        <span class="text-lg">⎋</span>
+        <span class="hidden sm:inline">Cerrar sesión</span>
+      </button>
+    </div>
+
+  </div>
+</header>
+
+<!-- DRAWER MENU + OVERLAY (ÚNICO) -->
+@if (menuAbierto) {
+  <div class="fixed inset-0 bg-black/40 z-[60]" (click)="cerrarMenu()"></div>
+
+  <aside
+    class="fixed top-0 left-0 h-full w-[85%] max-w-[320px] bg-white z-[70]
+           shadow-2xl border-r border-gray-200"
+  >
+    <div class="h-16 px-4 flex items-center justify-between border-b border-gray-200">
+      <div class="font-semibold text-gray-700">Menú</div>
+      <button
+        class="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+        (click)="cerrarMenu()"
+        title="Cerrar"
+      >
+        ✕
+      </button>
+    </div>
+
+    <nav class="p-3">
+
+    @if (puedeVerMatriz) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/matriz')"
+      >
+        Matriz servicios
+      </button>
+    }
+
+    @if (puedeVerDocumentos) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/documentos')"
+      >
+        Ver Documentos
+      </button>
+    }
+
+    @if (puedeVerTitulosH) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/titulos-h')"
+      >
+        Crear filas (Títulos Horizontales)
+      </button>
+    }
+
+    @if (puedeVerTitulosV) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/titulos-v')"
+      >
+        Crear columnas (Títulos Verticales)
+      </button>
+    }
+
+    @if (puedeVerCargos) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/cargos')"
+      >
+        Gestión de Cargos
+      </button>
+    }
+
+    @if (puedeVerCeldas) {
+      <button
+        class="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 transition text-gray-700"
+        (click)="ir('/crear-celdas')"
+      >
+        Crear celdas
+      </button>
+    }
+
+  </nav>
+  </aside>
+}
+
+<!-- ESPACIO PARA HEADER FIJO -->
+<div class="h-16"></div>
+
+<!-- CONTENEDOR GENERAL (ÚNICO) -->
+<div class="min-h-[calc(100vh-4rem)] bg-[#78aee3] px-3 sm:px-6 py-6 sm:py-8 pb-20">
+  <router-outlet />
+</div>
+
+<!-- FOOTER (ÚNICO) -->
+<footer class="fixed bottom-0 left-0 w-full bg-white text-gray-600 text-center py-3 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] z-50">
+  <p class="text-sm font-medium">
+    © Bitwan - Gestión Documental
+  </p>
+</footer>

@@ -1,0 +1,591 @@
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white w-[95%] max-w-5xl rounded-2xl shadow-2xl overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-6 py-4 bg-linear-to-r from-[#4aa8ff] to-[#1e88e5] text-white">
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
+
+        <!-- Izquierda: títulos -->
+        <div class="min-w-0">
+          <div class="text-lg font-bold leading-tight">Documentos</div>
+          <div class="text-sm opacity-90 truncate">
+            <span class="font-semibold">{{ celda.tituloV.nombre }}</span>
+            <span class="opacity-80"> / </span>
+            <span class="font-semibold">{{ celda.tituloH.nombre }}</span>
+            <span class="opacity-80"> / </span>
+            <span class="font-semibold">{{ celda.canal.nombre }}</span>
+          </div>
+        </div>
+
+        <!-- Derecha: acciones -->
+        <div class="flex items-center justify-end gap-2 flex-wrap">
+
+          @if (puedeCrear) {
+            <button
+              class="px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20
+                     transition text-sm font-medium whitespace-nowrap"
+              (click)="toggleCrear()"
+              title="Crear documento"
+            >
+              {{ creando ? 'Cancelar' : 'Crear documento' }}
+            </button>
+
+            <button
+              class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20
+                     transition text-sm font-medium whitespace-nowrap"
+              (click)="toggleAsignar()"
+              title="Asignar documento existente"
+            >
+              {{ modoAsignar ? 'Cancelar asignación' : 'Asignar existente' }}
+            </button>
+
+            @if (puedeGestionarCargos) {
+              <button
+                class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20
+                       transition text-sm font-medium whitespace-nowrap"
+                (click)="toggleCargos()"
+                title="Gestionar cargos (asignación)"
+              >
+                {{ modoCargos ? 'Cerrar cargos' : 'Gestionar cargos' }}
+              </button>
+            }
+          }
+
+          <button
+            class="px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 transition whitespace-nowrap"
+            (click)="cerrarModal()"
+            title="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6">
+
+      @if (errorMsg) {
+        <div class="mb-4 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200">
+          {{ errorMsg }}
+        </div>
+      }
+
+      <!-- ============================= -->
+      <!-- ✅ MODO EDITAR METADATA -->
+      <!-- ============================= -->
+      @if (modoEditarPdf && docEditando) {
+        <div class="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-sm text-gray-700 font-semibold">
+              Editar metadata
+            </div>
+
+            <button
+              class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition text-sm"
+              (click)="cancelarEditarPdf()"
+            >
+              Cancelar
+            </button>
+          </div>
+
+          <div class="text-sm text-gray-600 mb-3">
+            <span class="font-medium">Documento:</span>
+            {{ docEditando.nombre || '(Sin nombre)' }}
+            <span class="text-gray-400"> · </span>
+            <span class="font-medium">ID:</span>
+            {{ docEditando.idMatrizDocumento }}
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="text-sm">
+              <span class="text-gray-700 font-medium">Código</span>
+              <input
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                [(ngModel)]="codigoEdit"
+                name="codigoEdit"
+                placeholder=""
+              />
+            </label>
+
+            <label class="text-sm md:col-span-2">
+              <span class="text-gray-700 font-medium">URL Documento (Drive)</span>
+              <input
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                [(ngModel)]="urlDocEdit"
+                name="urlDocEdit"
+                placeholder=""
+              />
+            </label>
+
+            <label class="text-sm md:col-span-2">
+              <span class="text-gray-700 font-medium">URL PDF (Drive)</span>
+              <input
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                [(ngModel)]="urlPdfEdit"
+                name="urlPdfEdit"
+                placeholder=""
+              />
+            </label>
+          </div>
+
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition text-sm"
+              (click)="cancelarEditarPdf()"
+            >
+              Cancelar
+            </button>
+
+            <button
+              class="px-4 py-2 rounded-lg bg-[#1e88e5] text-white hover:opacity-90 transition text-sm disabled:opacity-60"
+              (click)="guardarUrlPdf()"
+              [disabled]="guardando"
+            >
+              {{ guardando ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Estado -->
+      <div class="flex items-center justify-between mb-4">
+        <div class="text-sm text-gray-600">
+          @if (cargando || cargandoNivel) {
+            Cargando...
+          } @else {
+            {{ documentos.length }} documento(s) visibles
+            @if (totalOcultosPorNivel > 0) {
+              <span class="text-gray-500">· {{ totalOcultosPorNivel }} oculto(s) por nivel de acceso</span>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Mensaje cuando hay docs asociados pero ninguno visible por nivel -->
+      @if (!cargando && !cargandoNivel && documentos.length === 0 && documentosAll.length > 0) {
+        <div class="mb-4 p-3 rounded-lg bg-yellow-50 text-yellow-800 border border-yellow-200">
+          No tienes nivel de acceso suficiente para visualizar los documentos asociados a esta celda.
+        </div>
+      }
+
+      <!-- ============================= -->
+      <!-- ✅ GESTIONAR CARGOS (asignacion) -->
+      <!-- ============================= -->
+      @if (modoCargos) {
+        <!-- (SIN CAMBIOS) -->
+        <div class="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div class="text-sm font-semibold text-gray-700">
+              Gestionar cargos de esta celda
+            </div>
+
+            @if (cargandoCargos) {
+              <div class="text-xs text-gray-500">Cargando...</div>
+            }
+          </div>
+
+          <!-- Selector cargo (con buscador) -->
+          <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+            <div class="text-sm block">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-700 font-medium">Cargo</span>
+                @if (idCargoSeleccionado) {
+                  <button
+                    class="text-xs text-gray-600 hover:text-gray-900 underline"
+                    type="button"
+                    (click)="limpiarCargoSeleccion()"
+                    title="Limpiar selección"
+                  >
+                    Limpiar
+                  </button>
+                }
+              </div>
+
+              <div class="relative mt-1">
+                <input
+                  class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white pr-10"
+                  [placeholder]="idCargoSeleccionado ? 'Cargo seleccionado' : 'Buscar cargo por nombre o ID...'"
+                  [(ngModel)]="busquedaCargo"
+                  name="busquedaCargo"
+                  (focus)="abrirDropdownCargo()"
+                  (input)="abrirDropdownCargo()"
+                  (blur)="programarCerrarDropdownCargo()"
+                  autocomplete="off"
+                />
+
+                @if (busquedaCargo) {
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 px-1"
+                    (mousedown)="$event.preventDefault()"
+                    (click)="limpiarBusquedaCargo()"
+                    title="Limpiar búsqueda"
+                  >
+                    ✕
+                  </button>
+                }
+
+                @if (dropdownCargoAbierto) {
+                  <div class="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                    <div class="max-h-64 overflow-auto">
+                      @if (!cargosCatalogo || cargosCatalogo.length === 0) {
+                        <div class="px-3 py-3 text-sm text-gray-500">
+                          No hay cargos disponibles.
+                        </div>
+                      } @else if (cargosFiltrados.length === 0) {
+                        <div class="px-3 py-3 text-sm text-gray-500">
+                          Sin resultados.
+                        </div>
+                      } @else {
+                        @for (c of cargosFiltrados; track c.idCargo) {
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-3 hover:bg-blue-50 transition flex items-start gap-2"
+                            (mousedown)="$event.preventDefault()"
+                            (click)="seleccionarCargo(c)"
+                          >
+                            <div class="min-w-0">
+                              <div class="text-sm font-medium text-gray-800 truncate">
+                                {{ c.nombre }}
+                              </div>
+                              <div class="text-xs text-gray-500">
+                                ID {{ c.idCargo }}
+                              </div>
+                            </div>
+                          </button>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+
+              @if (idCargoSeleccionado) {
+                <div class="mt-2 text-xs text-gray-600">
+                  Seleccionado: <span class="font-medium">{{ getCargoSeleccionadoLabel() }}</span>
+                </div>
+              }
+            </div>
+
+            <button
+              class="px-4 py-2 rounded-lg bg-[#1e88e5] text-white hover:opacity-90 transition text-sm disabled:opacity-60"
+              (click)="asignarCargo()"
+              [disabled]="!idCargoSeleccionado || guardandoCargo"
+              title="Asignar cargo a la celda"
+            >
+              {{ guardandoCargo ? 'Asignando...' : 'Asignar cargo' }}
+            </button>
+          </div>
+
+          <!-- Asignaciones actuales -->
+          <div class="mt-4">
+            <div class="text-sm font-semibold text-gray-700 mb-2">
+              Cargos asignados
+            </div>
+
+            @if (!cargandoCargos && asignaciones.length === 0) {
+              <div class="text-sm text-gray-500">
+                No hay cargos asignados a esta celda.
+              </div>
+            }
+
+            @if (asignaciones.length > 0) {
+              <div class="overflow-auto rounded-xl border border-gray-200 bg-white">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-50 text-gray-700">
+                    <tr>
+                      <th class="text-left px-4 py-3 border-b">Cargo</th>
+                      <th class="text-left px-4 py-3 border-b">Acción</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    @for (a of asignaciones; track a.idasignacion) {
+                      <tr class="hover:bg-blue-50/40">
+                        <td class="px-4 py-3 border-b">
+                          <div class="font-medium text-gray-800">
+                            {{ a.cargo?.nombre || ('Cargo ID ' + a.idCargo) }}
+                          </div>
+                          <div class="text-xs text-gray-500">
+                            Asignación ID {{ a.idasignacion }}
+                          </div>
+                        </td>
+
+                        <td class="px-4 py-3 border-b">
+                          <button
+                            class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-red-50 hover:text-red-600 transition disabled:opacity-60"
+                            (click)="desasignarCargo(a.idasignacion)"
+                            [disabled]="eliminandoAsignacionId === a.idasignacion"
+                            title="Eliminar asignación"
+                          >
+                            {{ eliminandoAsignacionId === a.idasignacion ? 'Eliminando...' : 'Desasignar' }}
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ✅ Asignar documento existente -->
+      @if (modoAsignar) {
+        <!-- (SIN CAMBIOS) -->
+        <div class="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div class="text-sm font-semibold text-gray-700 mb-3">
+            Asignar documento existente
+          </div>
+
+          <div class="text-sm block">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-700 font-medium">Documento</span>
+              @if (idDocumentoSeleccionado) {
+                <button
+                  class="text-xs text-gray-600 hover:text-gray-900 underline"
+                  type="button"
+                  (click)="limpiarDocumentoSeleccion()"
+                  title="Limpiar selección"
+                >
+                  Limpiar
+                </button>
+              }
+            </div>
+
+            <div class="relative mt-1">
+              <input
+                class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white pr-10"
+                [placeholder]="idDocumentoSeleccionado ? 'Documento seleccionado' : 'Buscar documento por nombre o ID...'"
+                [(ngModel)]="busquedaDocumento"
+                name="busquedaDocumento"
+                (focus)="abrirDropdownDocumento()"
+                (input)="abrirDropdownDocumento()"
+                (blur)="programarCerrarDropdownDocumento()"
+                autocomplete="off"
+              />
+
+              @if (busquedaDocumento) {
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 px-1"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="limpiarBusquedaDocumento()"
+                  title="Limpiar búsqueda"
+                >
+                  ✕
+                </button>
+              }
+
+              @if (dropdownDocumentoAbierto) {
+                <div class="absolute z-20 mt-2 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                  <div class="max-h-64 overflow-auto">
+                    @if (!documentosCatalogo || documentosCatalogo.length === 0) {
+                      <div class="px-3 py-3 text-sm text-gray-500">
+                        No hay documentos disponibles para tu nivel de acceso.
+                      </div>
+                    } @else if (documentosFiltrados.length === 0) {
+                      <div class="px-3 py-3 text-sm text-gray-500">
+                        Sin resultados.
+                      </div>
+                    } @else {
+                      @for (d of documentosFiltrados; track d.idMatrizDocumento) {
+                        <button
+                          type="button"
+                          class="w-full text-left px-3 py-3 hover:bg-blue-50 transition flex items-start gap-2"
+                          (mousedown)="$event.preventDefault()"
+                          (click)="seleccionarDocumento(d)"
+                        >
+                          <div class="min-w-0">
+                            <div class="text-sm font-medium text-gray-800 truncate">
+                              {{ d.nombre || '(Sin nombre)' }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                              ID {{ d.idMatrizDocumento }} <span class="text-gray-300">·</span> {{ d.codigo || '' }}
+                            </div>
+                          </div>
+                        </button>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            @if (idDocumentoSeleccionado) {
+              <div class="mt-2 text-xs text-gray-600">
+                Seleccionado: <span class="font-medium">{{ getDocumentoSeleccionadoLabel() }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition text-sm"
+              (click)="toggleAsignar()"
+            >
+              Cancelar
+            </button>
+
+            <button
+              class="px-4 py-2 rounded-lg bg-[#1e88e5] text-white hover:opacity-90 transition text-sm disabled:opacity-60"
+              (click)="asignarDocumento()"
+              [disabled]="!idDocumentoSeleccionado || asignando"
+            >
+              {{ asignando ? 'Asignando...' : 'Asignar' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Crear documento -->
+      @if (creando) {
+        <!-- (SIN CAMBIOS) -->
+        <div class="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="text-sm">
+              <span class="text-gray-700 font-medium">Tipo Doc (idtipo_doc)</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     type="number"
+                     [(ngModel)]="form.idMatrizTipoDoc"
+                     name="idMatrizTipoDoc"/>
+            </label>
+
+            <label class="text-sm">
+              <span class="text-gray-700 font-medium">Nivel Acceso (idnivel_acceso)</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     type="number"
+                     [(ngModel)]="form.idMatrizNivelAcceso"
+                     name="idMatrizNivelAcceso"/>
+            </label>
+
+            <label class="text-sm">
+              <span class="text-gray-700 font-medium">Código</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     [(ngModel)]="form.codigo"
+                     name="codigo"/>
+            </label>
+
+            <label class="text-sm">
+              <span class="text-gray-700 font-medium">Nombre</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     [(ngModel)]="form.nombre"
+                     name="nombre"/>
+            </label>
+
+            <label class="text-sm md:col-span-2">
+              <span class="text-gray-700 font-medium">URL Documento (Drive)</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     [(ngModel)]="form.urlDoc"
+                     name="urlDoc"/>
+            </label>
+
+            <label class="text-sm md:col-span-2">
+              <span class="text-gray-700 font-medium">URL PDF (Drive)</span>
+              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
+                     [(ngModel)]="form.urlPdf"
+                     name="urlPdf"/>
+            </label>
+          </div>
+
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition text-sm"
+              (click)="toggleCrear()"
+            >
+              Cancelar
+            </button>
+            <button
+              class="px-4 py-2 rounded-lg bg-[#1e88e5] text-white hover:opacity-90 transition text-sm"
+              (click)="crearDocumento()"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Tabla documentos -->
+      <div class="overflow-auto rounded-xl border border-gray-200">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-50 text-gray-700">
+            <tr>
+              <th class="text-left px-4 py-3 border-b">Nombre</th>
+              <th class="text-left px-4 py-3 border-b">Tipo</th>
+              <th class="text-left px-4 py-3 border-b">Acceso</th>
+              <th class="text-left px-4 py-3 border-b">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @if (!cargando && !cargandoNivel && documentosAll.length === 0) {
+              <tr>
+                <td class="px-4 py-4 text-gray-500" colspan="4">
+                  No hay documentos asociados a esta celda.
+                </td>
+              </tr>
+            }
+
+            @for (doc of documentos; track doc.idMatrizDocumento) {
+              <tr class="hover:bg-blue-50/40">
+                <td class="px-4 py-3 border-b">
+                  <div class="font-medium text-gray-800">{{ doc.nombre || '(Sin nombre)' }}</div>
+                  <div class="text-xs text-gray-500">{{ doc.codigo || '' }}</div>
+                </td>
+
+                <td class="px-4 py-3 border-b">
+                  {{ doc.tipoDoc?.nombre }}
+                </td>
+
+                <td class="px-4 py-3 border-b">
+                  {{ doc.nivelAcceso?.nombre }}
+                </td>
+
+                <td class="px-4 py-3 border-b">
+                  <div class="flex gap-2">
+
+                    @if (puedeVerDoc) {
+                      <button
+                        class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                        (click)="abrirUrl(getUrlDoc(doc))"
+                        [disabled]="!getUrlDoc(doc)"
+                        [class.opacity-50]="!getUrlDoc(doc)"
+                      >
+                        Abrir Doc
+                      </button>
+                    }
+
+                    @if (puedeVerPdf) {
+                      <button
+                        class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                        (click)="abrirUrl(getUrlPdf(doc))"
+                        [disabled]="!getUrlPdf(doc)"
+                        [class.opacity-50]="!getUrlPdf(doc)"
+                      >
+                        Abrir PDF
+                      </button>
+                    }
+
+                    @if (puedeEditar) {
+                      <button
+                        class="px-3 py-1.5 rounded-lg bg-[#1e88e5] text-white hover:opacity-90 transition"
+                        (click)="editarUrlPdf(doc)"
+                      >
+                        Editar metadata
+                      </button>
+                    }
+
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
