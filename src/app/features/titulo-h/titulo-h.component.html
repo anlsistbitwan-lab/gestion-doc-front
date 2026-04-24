@@ -48,12 +48,17 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label class="text-sm">
           <span class="text-gray-700 font-medium">Tipo (idtipo_titulo_h)</span>
-          <input
-            class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
-            type="number"
+          <select
+            class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 bg-white"
             [(ngModel)]="form.idtipo_titulo_h"
             name="idtipo_titulo_h"
-          />
+          >
+            @for (t of tiposTituloH; track t.idtipo_titulo_h) {
+              <option [ngValue]="t.idtipo_titulo_h">
+                {{ t.nombre || ('Tipo ' + t.idtipo_titulo_h) }} (ID {{ t.idtipo_titulo_h }})
+              </option>
+            }
+          </select>
         </label>
 
         <label class="text-sm">

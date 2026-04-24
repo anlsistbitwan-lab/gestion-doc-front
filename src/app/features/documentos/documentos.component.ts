@@ -22,6 +22,16 @@ type CrearDocForm = {
   urlPdf: string;
 };
 
+type TipoDocumentoDto = {
+  idMatrizTipoDoc: number;
+  nombre: string;
+};
+
+type NivelAccesoDto = {
+  idMatrizNivelAcceso: number;
+  nombre: string;
+};
+
 @Component({
   selector: 'app-documentos',
   standalone: true,
@@ -36,6 +46,8 @@ export class DocumentosComponent implements OnInit {
   // UI crear
   creando = false;
   guardandoCrear = false;
+  tiposDocumento: TipoDocumentoDto[] = [];
+  nivelesAccesoCatalogo: NivelAccesoDto[] = [];
 
   // ✅ Form para crear SIN asignación (no idmatriz, no idtitulo_h)
   form: CrearDocForm = {
@@ -80,7 +92,34 @@ export class DocumentosComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.cargarCatalogosFormulario();
     this.cargarListado();
+  }
+
+  private cargarCatalogosFormulario(): void {
+    this.api.listarTiposDocumento().subscribe({
+      next: (data) => {
+        this.tiposDocumento = (data ?? []) as TipoDocumentoDto[];
+        if (!this.form.idMatrizTipoDoc && this.tiposDocumento.length > 0) {
+          this.form.idMatrizTipoDoc = this.tiposDocumento[0].idMatrizTipoDoc;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los tipos de documento.';
+      },
+    });
+
+    this.api.listarNivelesAcceso().subscribe({
+      next: (data) => {
+        this.nivelesAccesoCatalogo = (data ?? []) as NivelAccesoDto[];
+        if (!this.form.idMatrizNivelAcceso && this.nivelesAccesoCatalogo.length > 0) {
+          this.form.idMatrizNivelAcceso = this.nivelesAccesoCatalogo[0].idMatrizNivelAcceso;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los niveles de acceso.';
+      },
+    });
   }
 
   logout() {
@@ -180,6 +219,22 @@ export class DocumentosComponent implements OnInit {
   abrirUrl(url?: string) {
     if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  verPdfSeguro(doc: Documento) {
+    const id = Number((doc as any)?.idMatrizDocumento ?? 0);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    this.api.obtenerPdfDocumento(id).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      },
+      error: () => {
+        this.errorMsg = 'No se pudo visualizar el PDF seguro.';
+      },
+    });
   }
 
   // ==========================

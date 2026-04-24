@@ -13,6 +13,7 @@ type CrearTituloHForm = {
 };
 
 type TituloHUI = TituloHConTipo & { inactivoUI?: boolean };
+type TipoTituloHDto = { idtipo_titulo_h: number; nombre: string };
 
 @Component({
   selector: 'app-titulo-h',
@@ -27,6 +28,7 @@ export class TituloHComponent implements OnInit {
 
   creando = false;
   guardando = false;
+  tiposTituloH: TipoTituloHDto[] = [];
 
   form: CrearTituloHForm = {
     idtipo_titulo_h: 1,
@@ -39,7 +41,35 @@ export class TituloHComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.cargarTiposTituloH();
     this.cargarListado();
+  }
+
+  private normalizarTipoTituloH(raw: unknown): TipoTituloHDto | null {
+    const o = raw as Record<string, unknown>;
+    const id = Number(
+      o?.['idtipo_titulo_h'] ?? o?.['idMatrizTipoTituloH'] ?? o?.['id'] ?? 0,
+    );
+    if (!Number.isFinite(id) || id <= 0) return null;
+    return { idtipo_titulo_h: id, nombre: String(o?.['nombre'] ?? '') };
+  }
+
+  private cargarTiposTituloH() {
+    this.api.listarTiposTituloH().subscribe({
+      next: (res) => {
+        this.tiposTituloH = (res ?? [])
+          .map((r) => this.normalizarTipoTituloH(r))
+          .filter((x): x is TipoTituloHDto => x != null);
+        if (this.tiposTituloH.length === 0) return;
+        const ok = this.tiposTituloH.some((t) => t.idtipo_titulo_h === this.form.idtipo_titulo_h);
+        if (!ok) {
+          this.form.idtipo_titulo_h = this.tiposTituloH[0].idtipo_titulo_h;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los tipos de título H.';
+      },
+    });
   }
 
   cargarListado() {

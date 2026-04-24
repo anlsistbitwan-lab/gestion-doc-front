@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 import { AuthService } from '../auth/auth.service'; // ajusta ruta si tu auth está en otro nivel
+import { PERMISOS } from '../auth/permisos';
 
 type LayoutTitle = { small: string; large: string };
 
@@ -59,8 +60,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   logout() {
-    (this.auth as any)?.logout?.();
-    this.router.navigate(['/login']);
+    this.auth.logout();
   }
 
   @HostListener('document:click', ['$event'])
@@ -94,26 +94,27 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   // permisos
   get puedeVerMatriz(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.matriz_doc');
+    // return this.auth.hasPermiso('apps.gestiondoc.matriz_doc'); // real
+    return this.auth.hasPermiso(PERMISOS.PERM_MATRIZ.VER); // temporal
   }
 
   get puedeVerDocumentos(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.documentos');
+    return this.auth.hasPermiso(PERMISOS.PERM_DOCUMENTOS.VER);
   }
 
   get puedeVerTitulosH(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.titulosh');
+    return this.auth.hasPermiso(PERMISOS.PERM_TITULOS_H.VER);
   }
 
   get puedeVerTitulosV(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.titulosv');
+    return this.auth.hasPermiso(PERMISOS.PERM_TITULOS_V.VER);
   }
 
   get puedeVerCargos(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.cargos');
+    return this.auth.hasPermiso(PERMISOS.PERM_CARGOS.VER);
   }
 
   get puedeVerCeldas(): boolean {
-    return this.auth.hasPermiso('apps.gestiondoc.celdas');
+    return this.auth.hasPermiso(PERMISOS.PERM_CELDAS.VER);
   }
 }

@@ -29,15 +29,13 @@ export class ModalCopiarCargoComponent implements OnInit {
   @Output() cerrar = new EventEmitter<void>();
   @Output() copiado = new EventEmitter<void>();
 
-  // buscador tipo dropdown
-  busquedaCargo = '';
-  dropdownAbierto = false;
+  busquedaCargoOrigen = '';
+  dropdownOrigenAbierto = false;
+  cargoOrigen: CargoDto | null = null;
 
-  cargoSeleccionado: CargoDto | null = null;
-
-  // nuevos datos
-  nombreNuevo = '';
-  descripcionNueva = '';
+  busquedaCargoDestino = '';
+  dropdownDestinoAbierto = false;
+  cargoDestino: CargoDto | null = null;
 
   guardando = false;
   errorMsg: string | null = null;
@@ -48,126 +46,157 @@ export class ModalCopiarCargoComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // dropdown inicia cerrado (requisito)
-    this.dropdownAbierto = false;
+    this.dropdownOrigenAbierto = false;
+    this.dropdownDestinoAbierto = false;
   }
 
   cerrarModal() {
     this.cerrar.emit();
   }
 
-  // ==========================
-  // ✅ DROPDOWN (buscador)
-  // ==========================
-  onFocusBuscador() {
-    // solo abre si hay texto
-    this.dropdownAbierto = !!this.busquedaCargo.trim();
-  }
-
-  onChangeBuscador() {
-    // requisito: no abrir si no hay búsqueda
-    const term = this.busquedaCargo.trim();
-    this.dropdownAbierto = term.length > 0;
-    // al escribir, se invalida selección previa (para evitar confusiones)
-    this.cargoSeleccionado = null;
-  }
-
-  seleccionarCargo(c: CargoDto) {
-    this.cargoSeleccionado = c;
-    this.busquedaCargo = `${c.nombre} (ID ${c.idCargo})`;
-    this.dropdownAbierto = false;
-  }
-
-  limpiarSeleccion() {
-    this.cargoSeleccionado = null;
-    this.busquedaCargo = '';
-    this.dropdownAbierto = false;
-  }
-
-  get cargosFiltrados(): CargoDto[] {
-    const term = (this.busquedaCargo ?? '').trim().toLowerCase();
+  private filtrarCargos(term: string, excluirId?: number): CargoDto[] {
+    const t = (term ?? '').trim().toLowerCase();
     const base = this.cargosCatalogo ?? [];
-
-    if (!term) return [];
+    if (!t) return [];
 
     return base
-      .filter(c => {
+      .filter((c) => {
+        if (excluirId != null && c.idCargo === excluirId) return false;
         const id = String(c.idCargo ?? '').toLowerCase();
         const nombre = String(c.nombre ?? '').toLowerCase();
         const desc = String(c.descripcion ?? '').toLowerCase();
-        return id.includes(term) || nombre.includes(term) || desc.includes(term);
+        return id.includes(t) || nombre.includes(t) || desc.includes(t);
       })
-      .slice(0, 12); // UX: lista corta
+      .slice(0, 12);
   }
 
-  // click fuera del dropdown lo cierra
+  get cargosFiltradosOrigen(): CargoDto[] {
+    return this.filtrarCargos(this.busquedaCargoOrigen, this.cargoDestino?.idCargo);
+  }
+
+  get cargosFiltradosDestino(): CargoDto[] {
+    return this.filtrarCargos(this.busquedaCargoDestino, this.cargoOrigen?.idCargo);
+  }
+
+  onFocusBuscadorOrigen() {
+    this.dropdownOrigenAbierto = !!this.busquedaCargoOrigen.trim();
+  }
+
+  onChangeBuscadorOrigen() {
+    const term = this.busquedaCargoOrigen.trim();
+    this.dropdownOrigenAbierto = term.length > 0;
+    this.cargoOrigen = null;
+  }
+
+  onFocusBuscadorDestino() {
+    this.dropdownDestinoAbierto = !!this.busquedaCargoDestino.trim();
+  }
+
+  onChangeBuscadorDestino() {
+    const term = this.busquedaCargoDestino.trim();
+    this.dropdownDestinoAbierto = term.length > 0;
+    this.cargoDestino = null;
+  }
+
+  seleccionarCargoOrigen(c: CargoDto) {
+    this.cargoOrigen = c;
+    this.busquedaCargoOrigen = `${c.nombre} (ID ${c.idCargo})`;
+    this.dropdownOrigenAbierto = false;
+    if (this.cargoDestino?.idCargo === c.idCargo) {
+      this.limpiarSeleccionDestino();
+    }
+  }
+
+  seleccionarCargoDestino(c: CargoDto) {
+    this.cargoDestino = c;
+    this.busquedaCargoDestino = `${c.nombre} (ID ${c.idCargo})`;
+    this.dropdownDestinoAbierto = false;
+    if (this.cargoOrigen?.idCargo === c.idCargo) {
+      this.limpiarSeleccionOrigen();
+    }
+  }
+
+  limpiarSeleccionOrigen() {
+    this.cargoOrigen = null;
+    this.busquedaCargoOrigen = '';
+    this.dropdownOrigenAbierto = false;
+  }
+
+  limpiarSeleccionDestino() {
+    this.cargoDestino = null;
+    this.busquedaCargoDestino = '';
+    this.dropdownDestinoAbierto = false;
+  }
+
   @HostListener('document:click', ['$event'])
   onDocClick(e: MouseEvent) {
-    if (!this.dropdownAbierto) return;
+    if (!this.dropdownOrigenAbierto && !this.dropdownDestinoAbierto) return;
 
-    const target = e.target as any;
+    const target = e.target as Node;
     const root: HTMLElement = this.elementRef.nativeElement;
     if (!root.contains(target)) {
-      this.dropdownAbierto = false;
+      this.dropdownOrigenAbierto = false;
+      this.dropdownDestinoAbierto = false;
       return;
     }
 
-    // si clic fue dentro del modal pero fuera del bloque del buscador (lo marcamos con data-role)
     const el = target as HTMLElement;
-    const dentroBuscador = el.closest?.('[data-role="buscador-cargo"]');
-    if (!dentroBuscador) this.dropdownAbierto = false;
+    const dentroOrigen = el.closest?.('[data-role="buscador-cargo-origen"]');
+    const dentroDest = el.closest?.('[data-role="buscador-cargo-destino"]');
+    if (this.dropdownOrigenAbierto && !dentroOrigen) this.dropdownOrigenAbierto = false;
+    if (this.dropdownDestinoAbierto && !dentroDest) this.dropdownDestinoAbierto = false;
   }
 
-  // ESC: cierra dropdown; si ya estaba cerrado, cierra modal
   @HostListener('document:keydown.escape', ['$event'])
-onEsc(ev: Event) {
-  // Angular puede tipar el evento como Event
-  const kev = ev as KeyboardEvent;
-  kev.preventDefault();
+  onEsc(ev: Event) {
+    const kev = ev as KeyboardEvent;
+    kev.preventDefault();
 
-  if (this.dropdownAbierto) {
-    this.dropdownAbierto = false;
-    return;
+    if (this.dropdownOrigenAbierto) {
+      this.dropdownOrigenAbierto = false;
+      return;
+    }
+    if (this.dropdownDestinoAbierto) {
+      this.dropdownDestinoAbierto = false;
+      return;
+    }
+
+    this.cerrarModal();
   }
 
-  this.cerrarModal();
-}
-
-
-  // ==========================
-  // ✅ GUARDAR (copiar)
-  // ==========================
   guardarCopia() {
     if (this.guardando) return;
 
-    if (!this.cargoSeleccionado?.idCargo) {
-      this.errorMsg = 'Debes seleccionar un cargo para copiar.';
+    if (!this.cargoOrigen?.idCargo) {
+      this.errorMsg = 'Debes seleccionar el cargo origen.';
       return;
     }
-
-    if (!this.nombreNuevo?.trim()) {
-      this.errorMsg = 'El nombre del cargo nuevo es obligatorio.';
+    if (!this.cargoDestino?.idCargo) {
+      this.errorMsg = 'Debes seleccionar el cargo destino (ya existente).';
+      return;
+    }
+    if (this.cargoOrigen.idCargo === this.cargoDestino.idCargo) {
+      this.errorMsg = 'El cargo origen y el destino no pueden ser el mismo.';
       return;
     }
 
     this.guardando = true;
     this.errorMsg = null;
 
-    const payload = {
-      idCargoOrigen: this.cargoSeleccionado.idCargo,
-      nombre: this.nombreNuevo.trim(),
-      descripcion: this.descripcionNueva?.trim() || undefined,
-    };
-
-    this.api.copiarCargo(payload).subscribe({
-      next: () => {
-        this.guardando = false;
-        this.copiado.emit();
-      },
-      error: () => {
-        this.guardando = false;
-        this.errorMsg = 'No se pudo copiar el cargo.';
-      },
-    });
+    this.api
+      .copiarAsignacionesCargos({
+        idCargoOrigen: this.cargoOrigen.idCargo,
+        idCargoDestino: this.cargoDestino.idCargo,
+      })
+      .subscribe({
+        next: () => {
+          this.guardando = false;
+          this.copiado.emit();
+        },
+        error: () => {
+          this.guardando = false;
+          this.errorMsg = 'No se pudieron copiar las asignaciones.';
+        },
+      });
   }
 }

@@ -448,18 +448,32 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label class="text-sm">
               <span class="text-gray-700 font-medium">Tipo Doc (idtipo_doc)</span>
-              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
-                     type="number"
-                     [(ngModel)]="form.idMatrizTipoDoc"
-                     name="idMatrizTipoDoc"/>
+              <select
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 bg-white"
+                [(ngModel)]="form.idMatrizTipoDoc"
+                name="idMatrizTipoDoc"
+              >
+                @for (t of tiposDocumento; track t.idMatrizTipoDoc) {
+                  <option [ngValue]="t.idMatrizTipoDoc">
+                    {{ t.nombre || ('Tipo ' + t.idMatrizTipoDoc) }} (ID {{ t.idMatrizTipoDoc }})
+                  </option>
+                }
+              </select>
             </label>
 
             <label class="text-sm">
               <span class="text-gray-700 font-medium">Nivel Acceso (idnivel_acceso)</span>
-              <input class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300"
-                     type="number"
-                     [(ngModel)]="form.idMatrizNivelAcceso"
-                     name="idMatrizNivelAcceso"/>
+              <select
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 bg-white"
+                [(ngModel)]="form.idMatrizNivelAcceso"
+                name="idMatrizNivelAcceso"
+              >
+                @for (n of nivelesAccesoCatalogo; track n.idMatrizNivelAcceso) {
+                  <option [ngValue]="n.idMatrizNivelAcceso">
+                    {{ n.nombre || ('Nivel ' + n.idMatrizNivelAcceso) }} (ID {{ n.idMatrizNivelAcceso }})
+                  </option>
+                }
+              </select>
             </label>
 
             <label class="text-sm">
@@ -566,6 +580,15 @@
                         [class.opacity-50]="!getUrlPdf(doc)"
                       >
                         Abrir PDF
+                      </button>
+
+                      <button
+                        class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+                        (click)="verPdfSeguro(doc)"
+                        [disabled]="!doc.idMatrizDocumento"
+                        [class.opacity-50]="!doc.idMatrizDocumento"
+                      >
+                        Ver PDF
                       </button>
                     }
 

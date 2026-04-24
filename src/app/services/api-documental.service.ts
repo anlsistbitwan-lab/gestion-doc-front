@@ -79,6 +79,12 @@ export class ApiDocumentalService {
     return this.http.put<Documento>(`${this.baseUrl}/documentos/${id}`, dto);
   }
 
+  obtenerPdfDocumento(id: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/documentos/${id}/pdf`, {
+      responseType: 'blob',
+    });
+  }
+
   // Listar todos los documentos (para selector "Asignar")
   listarDocumentos(): Observable<Documento[]> {
     return this.http.get<Documento[]>(`${this.baseUrl}/documentos`);
@@ -131,6 +137,10 @@ export class ApiDocumentalService {
     return this.http.post(`${this.baseUrl}/titulo-h`, payload);
   }
 
+  listarTiposTituloH(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/tipos-titulo-h`);
+  }
+
   listarTitulosV(): Observable<TituloVConTipo[]> {
     return this.http.get<TituloVConTipo[]>(`${this.baseUrl}/titulo-v`);
   }
@@ -139,8 +149,16 @@ export class ApiDocumentalService {
     return this.http.post(`${this.baseUrl}/titulo-v`, payload);
   }
 
+  listarTiposTituloV(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/tipos-titulo-v`);
+  }
+
 
   // NIVELES ACCESO
+
+  listarTiposDocumento(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/tipos-documento`);
+  }
 
   listarNivelesAcceso(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/niveles-acceso`);
@@ -158,6 +176,16 @@ export class ApiDocumentalService {
     return this.http.get<any[]>(`${this.baseUrl}/usuarios`);
   }
 
+  /** Usuarios activos que aún no tienen fila en terceroscargos para este idCargo (ver ruta en Nest). */
+  listarUsuariosSinCargo(idCargo: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/usuarios/sin-cargo/${idCargo}`);
+  }
+
+  /** Cargos asignados al usuario (terceroscargos + datos de cargo). Ver implementación en Nest. */
+  listarCargosPorUsuario(idUsuario: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/usuarios/${idUsuario}/cargos`);
+  }
+
   asignarUsuariosACargo(idCargo: number, idsUsuarios: number[]): Observable<any> {
     return this.http.put(`${this.baseUrl}/usuarios/asignar-cargo`, {
       idCargo,
@@ -165,8 +193,12 @@ export class ApiDocumentalService {
     });
   }
 
-    copiarCargo(dto: { idCargoOrigen: number; nombre: string; descripcion?: string }): Observable<any> {
+  copiarCargo(dto: { idCargoOrigen: number; nombre: string; descripcion?: string }): Observable<any> {
     return this.http.post(`${this.baseUrl}/cargos/copiar`, dto);
+  }
+
+  copiarAsignacionesCargos(dto: { idCargoOrigen: number; idCargoDestino: number; modo?: string }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/cargos/copiar-asignaciones`, dto);
   }
 
   // nivel de acceso del usuario (por cargo)

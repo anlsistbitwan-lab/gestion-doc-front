@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +15,13 @@ type UsuarioDto = {
   idUsuario: number;
   alias: string;
   idCargo?: number | null;
+};
+
+/** Respuesta de GET /usuarios/:idUsuario/cargos */
+export type CargoAsignadoUsuario = {
+  idCargo: number;
+  nombre: string;
+  descripcion?: string | null;
 };
 
 @Component({
@@ -45,6 +53,12 @@ export class ModalAsignarUsuariosComponent implements OnInit {
   // guardar
   guardando = false;
 
+  /** Modal secundario: ver cargos del usuario */
+  verCargosDeUsuario: UsuarioDto | null = null;
+  cargosAsignadosUsuario: CargoAsignadoUsuario[] = [];
+  cargandoCargosUsuario = false;
+  errorMsgCargosUsuario: string | null = null;
+
   constructor(private api: ApiDocumentalService) {}
 
   ngOnInit(): void {
@@ -56,10 +70,15 @@ export class ModalAsignarUsuariosComponent implements OnInit {
   }
 
   cargarUsuarios() {
+    if (!this.cargo?.idCargo) {
+      this.errorMsg = 'No hay cargo seleccionado.';
+      return;
+    }
+
     this.cargando = true;
     this.errorMsg = null;
 
-    this.api.listarUsuarios().subscribe({
+    this.api.listarUsuariosSinCargo(this.cargo.idCargo).subscribe({
       next: (data) => {
         this.usuarios = (data ?? []) as UsuarioDto[];
         this.cargando = false;
@@ -68,7 +87,7 @@ export class ModalAsignarUsuariosComponent implements OnInit {
       },
       error: () => {
         this.cargando = false;
-        this.errorMsg = 'No se pudieron cargar los usuarios.';
+        this.errorMsg = 'No se pudieron cargar los usuarios disponibles para este cargo.';
       }
     });
   }
@@ -92,7 +111,7 @@ export class ModalAsignarUsuariosComponent implements OnInit {
     const base = this.usuarios ?? [];
     if (!term) return base;
 
-    return base.filter(u => {
+    return base.filter((u) => {
       const id = String(u.idUsuario ?? '').toLowerCase();
       const alias = String(u.alias ?? '').toLowerCase();
       return id.includes(term) || alias.includes(term);
@@ -174,6 +193,32 @@ export class ModalAsignarUsuariosComponent implements OnInit {
     return this.seleccion.size;
   }
 
+  abrirVerCargosAsignados(u: UsuarioDto) {
+    this.verCargosDeUsuario = u;
+    this.cargosAsignadosUsuario = [];
+    this.errorMsgCargosUsuario = null;
+    this.cargandoCargosUsuario = true;
+
+    this.api.listarCargosPorUsuario(u.idUsuario).subscribe({
+      next: (data) => {
+        this.cargosAsignadosUsuario = (data ?? []) as CargoAsignadoUsuario[];
+        this.cargandoCargosUsuario = false;
+      },
+      error: (err: unknown) => {
+        this.cargandoCargosUsuario = false;
+        this.errorMsgCargosUsuario =
+          this.mensajeErrorApi(err) ?? 'No se pudieron cargar los cargos de este usuario.';
+      },
+    });
+  }
+
+  cerrarModalVerCargos() {
+    this.verCargosDeUsuario = null;
+    this.cargosAsignadosUsuario = [];
+    this.errorMsgCargosUsuario = null;
+    this.cargandoCargosUsuario = false;
+  }
+
   // ==========================
   // ✅ ASIGNAR
   // ==========================
@@ -195,10 +240,24 @@ export class ModalAsignarUsuariosComponent implements OnInit {
         this.guardando = false;
         this.asignados.emit();
       },
-      error: () => {
+      error: (err: unknown) => {
         this.guardando = false;
-        this.errorMsg = 'No se pudo asignar el cargo a los usuarios.';
-      }
+        this.errorMsg =
+          this.mensajeErrorApi(err) ?? 'No se pudo asignar el cargo a los usuarios.';
+      },
     });
+  }
+
+  private mensajeErrorApi(err: unknown): string | null {
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error as { message?: string | string[] } | null;
+      if (body?.message != null) {
+        return Array.isArray(body.message) ? body.message.join(' ') : String(body.message);
+      }
+      if (err.status === 0) {
+        return 'Sin conexión con el servidor.';
+      }
+    }
+    return null;
   }
 }

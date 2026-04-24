@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiDocumentalService } from '../../services/api-documental.service';
 import { TituloVConTipo } from '../../models/matriz.model';
 import { AuthService } from '../../auth/auth.service';
+import { PERMISOS } from '../../auth/permisos';
 
 type CrearTituloVForm = {
   idtipo_titulo_v: number;
@@ -12,6 +13,7 @@ type CrearTituloVForm = {
 };
 
 type TituloVUI = TituloVConTipo & { inactivoUI?: boolean };
+type TipoTituloVDto = { idtipo_titulo_v: number; nombre: string };
 
 @Component({
   selector: 'app-titulo-v',
@@ -26,6 +28,7 @@ export class TituloVComponent implements OnInit {
 
   creando = false;
   guardando = false;
+  tiposTituloV: TipoTituloVDto[] = [];
 
   form: CrearTituloVForm = {
     idtipo_titulo_v: 1,
@@ -38,7 +41,35 @@ export class TituloVComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.cargarTiposTituloV();
     this.cargarListado();
+  }
+
+  private normalizarTipoTituloV(raw: unknown): TipoTituloVDto | null {
+    const o = raw as Record<string, unknown>;
+    const id = Number(
+      o?.['idtipo_titulo_v'] ?? o?.['idMatrizTipoTituloV'] ?? o?.['id'] ?? 0,
+    );
+    if (!Number.isFinite(id) || id <= 0) return null;
+    return { idtipo_titulo_v: id, nombre: String(o?.['nombre'] ?? '') };
+  }
+
+  private cargarTiposTituloV() {
+    this.api.listarTiposTituloV().subscribe({
+      next: (res) => {
+        this.tiposTituloV = (res ?? [])
+          .map((r) => this.normalizarTipoTituloV(r))
+          .filter((x): x is TipoTituloVDto => x != null);
+        if (this.tiposTituloV.length === 0) return;
+        const ok = this.tiposTituloV.some((t) => t.idtipo_titulo_v === this.form.idtipo_titulo_v);
+        if (!ok) {
+          this.form.idtipo_titulo_v = this.tiposTituloV[0].idtipo_titulo_v;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los tipos de título V.';
+      },
+    });
   }
 
   cargarListado() {
@@ -107,6 +138,6 @@ export class TituloVComponent implements OnInit {
 
   get puedeCrear(): boolean {
     //return this.auth.hasPermiso('apps.gestiondoc.crear');
-    return this.auth.hasPermiso('apps.gestiondoc.ver');
+    return this.auth.hasPermiso(PERMISOS.PERM_TITULOS_V.CREAR);
   }
 }

@@ -20,6 +20,16 @@ type AsignacionDto = {
   cargo?: CargoDto; // si el backend hace join
 };
 
+type TipoDocumentoDto = {
+  idMatrizTipoDoc: number;
+  nombre: string;
+};
+
+type NivelAccesoDto = {
+  idMatrizNivelAcceso: number;
+  nombre: string;
+};
+
 @Component({
   selector: 'app-modal-documentos',
   standalone: true,
@@ -46,6 +56,8 @@ export class ModalDocumentosComponent implements OnInit {
 
   // Crear documento
   creando = false;
+  tiposDocumento: TipoDocumentoDto[] = [];
+  nivelesAccesoCatalogo: NivelAccesoDto[] = [];
 
   form: CrearDocumentoDto = {
     idMatrizTipoDoc: 1,
@@ -133,6 +145,7 @@ export class ModalDocumentosComponent implements OnInit {
 
   ngOnInit(): void {
     this.form.idMatrizConfiguracion = this.celda?.idMatrizConfiguracion ?? 0;
+    this.cargarCatalogosFormulario();
 
     // ✅ 1) cargar nivel del usuario
     // ✅ 2) luego cargar documentos (y filtrar)
@@ -169,11 +182,38 @@ export class ModalDocumentosComponent implements OnInit {
     return Number.isFinite(id) ? id : 0;
   }
 
+  private cargarCatalogosFormulario(): void {
+    this.api.listarTiposDocumento().subscribe({
+      next: (data) => {
+        this.tiposDocumento = (data ?? []) as TipoDocumentoDto[];
+        if (!this.form.idMatrizTipoDoc && this.tiposDocumento.length > 0) {
+          this.form.idMatrizTipoDoc = this.tiposDocumento[0].idMatrizTipoDoc;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los tipos de documento.';
+      },
+    });
+
+    this.api.listarNivelesAcceso().subscribe({
+      next: (data) => {
+        this.nivelesAccesoCatalogo = (data ?? []) as NivelAccesoDto[];
+        if (!this.form.idMatrizNivelAcceso && this.nivelesAccesoCatalogo.length > 0) {
+          this.form.idMatrizNivelAcceso = this.nivelesAccesoCatalogo[0].idMatrizNivelAcceso;
+        }
+      },
+      error: () => {
+        this.errorMsg = this.errorMsg || 'No se pudieron cargar los niveles de acceso.';
+      },
+    });
+  }
+
   // ==========================
   // ✅ NIVEL ACCESO (usuario -> cargo -> nivel)
   // ==========================
   private cargarNivelAccesoUsuario(done?: () => void) {
     const idUsuario = this.getIdUsuarioSesion();
+    console.log('idUsuario', idUsuario);
     if (!idUsuario) {
       // sin usuario, no mostramos nada por seguridad
       this.nivelAccesoUsuario = null;
@@ -292,6 +332,22 @@ export class ModalDocumentosComponent implements OnInit {
   abrirUrl(url?: string) {
     if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  verPdfSeguro(doc: Documento) {
+    const id = Number((doc as any)?.idMatrizDocumento ?? 0);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    this.api.obtenerPdfDocumento(id).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      },
+      error: () => {
+        this.errorMsg = 'No se pudo visualizar el PDF seguro.';
+      },
+    });
   }
 
   // ==========================

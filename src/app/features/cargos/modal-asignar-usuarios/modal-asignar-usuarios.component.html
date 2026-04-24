@@ -1,3 +1,4 @@
+<ng-container>
 <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
   <div class="bg-white w-[95%] max-w-4xl rounded-2xl shadow-2xl overflow-hidden">
 
@@ -11,6 +12,9 @@
             Cargo: <span class="font-semibold">{{ cargo?.nombre }}</span>
             <span class="opacity-80"> · </span>
             ID {{ cargo?.idCargo }}
+          </div>
+          <div class="text-xs opacity-80 mt-1 max-w-prose">
+            Listado provisto por el servidor: solo usuarios que aún no pertenecen a este cargo.
           </div>
         </div>
 
@@ -156,7 +160,7 @@
                 />
               </th>
               <th class="text-left px-4 py-3 border-b">Usuario</th>
-              <th class="text-left px-4 py-3 border-b">Acción</th>
+              <th class="text-left px-4 py-3 border-b w-[200px]">Cargos</th>
             </tr>
           </thead>
 
@@ -164,7 +168,13 @@
             @if (!cargando && usuariosPagina.length === 0) {
               <tr>
                 <td class="px-4 py-4 text-gray-500" colspan="3">
-                  No hay usuarios para mostrar.
+                  @if (!busqueda.trim() && usuarios.length === 0) {
+                    No hay usuarios disponibles: todos los activos ya pertenecen a este cargo, o el listado está vacío.
+                  } @else if (busqueda.trim() && totalFiltrados === 0) {
+                    Ningún resultado para la búsqueda.
+                  } @else {
+                    No hay usuarios para mostrar.
+                  }
                 </td>
               </tr>
             }
@@ -188,10 +198,12 @@
 
                 <td class="px-4 py-3 border-b">
                   <button
-                    class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
-                    (click)="toggleUsuario(u.idUsuario, !esSeleccionado(u.idUsuario))"
+                    type="button"
+                    class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 transition text-sm"
+                    (click)="abrirVerCargosAsignados(u)"
+                    title="Ver en qué cargos está asignado este usuario"
                   >
-                    {{ esSeleccionado(u.idUsuario) ? 'Quitar' : 'Seleccionar' }}
+                    Ver cargos asignados
                   </button>
                 </td>
               </tr>
@@ -203,3 +215,71 @@
     </div>
   </div>
 </div>
+
+@if (verCargosDeUsuario) {
+  <div
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4"
+    (click)="$event.target === $event.currentTarget && cerrarModalVerCargos()"
+  >
+    <div
+      class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="px-5 py-4 bg-linear-to-r from-slate-700 to-slate-800 text-white flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <div class="text-base font-bold">Cargos asignados al usuario</div>
+          <div class="text-sm opacity-90 truncate">
+            {{ verCargosDeUsuario.alias }} <span class="opacity-70">· ID {{ verCargosDeUsuario.idUsuario }}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="shrink-0 px-2 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm"
+          (click)="cerrarModalVerCargos()"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="p-4 max-h-[min(60vh,420px)] overflow-auto">
+        @if (errorMsgCargosUsuario) {
+          <div class="mb-3 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">
+            {{ errorMsgCargosUsuario }}
+          </div>
+        }
+        @if (cargandoCargosUsuario) {
+          <div class="text-sm text-gray-500 py-4 text-center">Cargando…</div>
+        } @else if (!cargosAsignadosUsuario.length) {
+          <div class="text-sm text-gray-500 py-2">Este usuario no tiene cargos asignados (o no hay resultados).</div>
+        } @else {
+          <ul class="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+            @for (c of cargosAsignadosUsuario; track c.idCargo) {
+              <li class="px-3 py-2.5 text-sm bg-white">
+                <div class="font-medium text-gray-900">
+                  <span class="text-gray-500 font-normal">ID {{ c.idCargo }}</span>
+                  @if (c.nombre) {
+                    <span> · {{ c.nombre }}</span>
+                  }
+                </div>
+                @if (c.descripcion) {
+                  <div class="text-xs text-gray-600 mt-0.5">{{ c.descripcion }}</div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="px-4 py-3 border-t border-gray-200 flex justify-end">
+        <button
+          type="button"
+          class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm hover:opacity-90"
+          (click)="cerrarModalVerCargos()"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}
+</ng-container>
