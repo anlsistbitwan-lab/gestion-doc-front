@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Input, OnInit, Output, HostListener, ElementRef } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { NgxExtendedPdfViewerModule } from 'ngx-extended-pdf-viewer';
 
 import { ApiDocumentalService } from '../../services/api-documental.service';
 import { Documento, MatrizDoc, CrearDocumentoDto } from '../../models/matriz.model';
@@ -33,24 +34,23 @@ type NivelAccesoDto = {
 @Component({
   selector: 'app-modal-documentos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NgxExtendedPdfViewerModule],
   templateUrl: './modal-documentos.html',
 })
-export class ModalDocumentosComponent implements OnInit {
+export class ModalDocumentosComponent implements OnInit, OnDestroy {
   @Input() celda!: MatrizDoc;
   @Output() cerrar = new EventEmitter<void>();
 
-  // ✅ documentos visibles (filtrados por nivel)
+  //  documentos visibles (filtrados por nivel)
   documentos: Documento[] = [];
-  // ✅ documentos originales (sin filtrar) para saber cuántos quedaron ocultos
+  //  documentos originales (sin filtrar) para saber cuántos quedaron ocultos
   documentosAll: Documento[] = [];
 
   cargando = false;
   errorMsg: string | null = null;
 
-  // ==========================
-  // ✅ NIVEL ACCESO USUARIO
-  // ==========================
+  //  NIVEL ACCESO USUARIO
+
   cargandoNivel = false;
   nivelAccesoUsuario: number | null = null; // null = no cargado / no se pudo obtener
 
@@ -69,26 +69,25 @@ export class ModalDocumentosComponent implements OnInit {
     urlPdf: '',
   };
 
-  // ✅ Editar metadata
+  //  Editar metadata
   modoEditarPdf = false;
   docEditando: Documento | null = null;
 
-  // ✅ ahora editamos 3 campos
+  //  ahora editamos 3 campos
   codigoEdit = '';
   urlDocEdit = '';
   urlPdfEdit = '';
 
   guardando = false;
 
-  // ✅ Asignar documento existente
+  //  Asignar documento existente
   modoAsignar = false;
   documentosCatalogo: Documento[] = [];
   idDocumentoSeleccionado = 0;
   asignando = false;
 
-  // ==========================
-  // ✅ GESTIONAR CARGOS (asignacion)
-  // ==========================
+  //  GESTIONAR CARGOS (asignacion)
+
   modoCargos = false;
   cargosCatalogo: CargoDto[] = [];
   asignaciones: AsignacionDto[] = [];
@@ -96,10 +95,11 @@ export class ModalDocumentosComponent implements OnInit {
   cargandoCargos = false;
   guardandoCargo = false;
   eliminandoAsignacionId: number | null = null;
+  /** Respuesta HTTP 200 con creado: false (ej. ya existía la asignación) */
+  notificacionAsignacionCargo: string | null = null;
 
-  // ==========================
-  // ✅ BUSCADORES (Combobox UI)
-  // ==========================
+  //  BUSCADORES (Combobox UI)
+
   busquedaDocumento = '';
   dropdownDocumentoAbierto = false;
   private cerrarDocTimeout: any = null;
@@ -111,13 +111,19 @@ export class ModalDocumentosComponent implements OnInit {
   // Límite visual para evitar render pesado en listas gigantes
   private readonly LIMITE_ITEMS_DROPDOWN = 80;
 
+  visorPdfAbierto = false;
+  visorPdfTitulo = '';
+  visorPdfUrl: string | null = null;
+  errorVisorPdf: string | null = null;
+  cargandoPdfSeguro = false;
+
   constructor(
     private api: ApiDocumentalService,
     public auth: AuthService,
     private elementRef: ElementRef,
   ) {}
 
-  // ✅ Permisos
+  //  Permisos
   get puedeVerDoc(): boolean {
     //return this.auth.hasPermiso('apps.gestiondoc.ver');
     return this.auth.hasPermiso(PERMISOS.PERM_DOCUMENTOS.VER_DOC);
@@ -147,16 +153,20 @@ export class ModalDocumentosComponent implements OnInit {
     this.form.idMatrizConfiguracion = this.celda?.idMatrizConfiguracion ?? 0;
     this.cargarCatalogosFormulario();
 
-    // ✅ 1) cargar nivel del usuario
-    // ✅ 2) luego cargar documentos (y filtrar)
+    //  1) cargar nivel del usuario
+    //  2) luego cargar documentos (y filtrar)
     this.cargarNivelAccesoUsuario(() => {
       this.cargarDocumentos();
     });
   }
 
-  // ==========================
-  // ✅ helpers contexto
-  // ==========================
+  ngOnDestroy(): void {
+    this.liberarPdfUrl();
+  }
+
+
+  //  helpers contexto
+
   private esModoTituloH(): boolean {
     const idmatriz = this.celda?.idMatrizConfiguracion ?? 0;
     const idTituloH = this.celda?.tituloH?.idMatrizTituloH ?? 0;
@@ -208,9 +218,9 @@ export class ModalDocumentosComponent implements OnInit {
     });
   }
 
-  // ==========================
-  // ✅ NIVEL ACCESO (usuario -> cargo -> nivel)
-  // ==========================
+
+  //  NIVEL ACCESO (usuario -> cargo -> nivel)
+
   private cargarNivelAccesoUsuario(done?: () => void) {
     const idUsuario = this.getIdUsuarioSesion();
     console.log('idUsuario', idUsuario);
@@ -274,9 +284,9 @@ export class ModalDocumentosComponent implements OnInit {
     return Math.max(0, total - visibles);
   }
 
-  // ==========================
-  // ✅ cargar docs (y filtrar)
-  // ==========================
+
+  //  cargar docs (y filtrar)
+
   cargarDocumentos() {
     this.cargando = true;
     this.errorMsg = null;
@@ -318,6 +328,7 @@ export class ModalDocumentosComponent implements OnInit {
   }
 
   cerrarModal() {
+    this.cerrarVisorPdfSeguro();
     this.cerrar.emit();
   }
 
@@ -338,21 +349,51 @@ export class ModalDocumentosComponent implements OnInit {
     const id = Number((doc as any)?.idMatrizDocumento ?? 0);
     if (!Number.isFinite(id) || id <= 0) return;
 
+    this.cargandoPdfSeguro = true;
+    this.errorMsg = null;
+    this.errorVisorPdf = null;
+    this.visorPdfTitulo = String((doc as any)?.nombre ?? 'Documento PDF');
+    this.visorPdfAbierto = true;
+    this.visorPdfUrl = null;
+
     this.api.obtenerPdfDocumento(id).subscribe({
       next: (blob) => {
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank', 'noopener,noreferrer');
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        this.liberarPdfUrl();
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        this.visorPdfUrl = URL.createObjectURL(pdfBlob);
+        this.cargandoPdfSeguro = false;
       },
       error: () => {
-        this.errorMsg = 'No se pudo visualizar el PDF seguro.';
+        this.cargandoPdfSeguro = false;
+        this.cerrarVisorPdfSeguro();
+        this.errorMsg = 'No se pudo visualizar el PDF.';
       },
     });
   }
 
-  // ==========================
-  // ✅ CREAR
-  // ==========================
+  cerrarVisorPdfSeguro() {
+    this.visorPdfAbierto = false;
+    this.visorPdfTitulo = '';
+    this.errorVisorPdf = null;
+    this.liberarPdfUrl();
+    this.cargandoPdfSeguro = false;
+  }
+
+  onPdfLoadingFailed(event: any) {
+    this.cargandoPdfSeguro = false;
+    this.errorVisorPdf = event?.message || 'No se pudo renderizar el PDF en el visor.';
+  }
+
+  private liberarPdfUrl() {
+    if (this.visorPdfUrl) {
+      URL.revokeObjectURL(this.visorPdfUrl);
+      this.visorPdfUrl = null;
+    }
+  }
+
+
+  //  CREAR
+
   toggleCrear() {
     this.creando = !this.creando;
     if (this.creando) {
@@ -420,9 +461,9 @@ export class ModalDocumentosComponent implements OnInit {
     });
   }
 
-  // ==========================
-  // ✅ ASIGNAR EXISTENTE
-  // ==========================
+
+  //  ASIGNAR EXISTENTE
+
   toggleAsignar() {
     this.modoAsignar = !this.modoAsignar;
     if (this.modoAsignar) {
@@ -437,7 +478,7 @@ export class ModalDocumentosComponent implements OnInit {
   private cargarCatalogoDocumentos() {
     this.api.listarDocumentos().subscribe({
       next: (docs) => {
-        // ✅ filtramos catálogo también por nivel (para que no pueda seleccionar uno que no verá)
+        //  filtramos catálogo también por nivel (para que no pueda seleccionar uno que no verá)
         const base = docs ?? [];
         this.documentosCatalogo = base.filter(d => this.puedeVerDocumentoPorNivel(d));
 
@@ -491,18 +532,20 @@ export class ModalDocumentosComponent implements OnInit {
     });
   }
 
-  // ==========================
-  // ✅ GESTIONAR CARGOS
-  // ==========================
+
+  //  GESTIONAR CARGOS
+
   toggleCargos() {
     this.modoCargos = !this.modoCargos;
 
     if (this.modoCargos) {
       this.creando = false;
       this.modoAsignar = false;
+      this.notificacionAsignacionCargo = null;
       this.cargarCargosYAsignaciones();
     } else {
       this.resetBuscadorCargo();
+      this.notificacionAsignacionCargo = null;
     }
   }
 
@@ -556,10 +599,19 @@ export class ModalDocumentosComponent implements OnInit {
 
     this.guardandoCargo = true;
     this.errorMsg = null;
+    this.notificacionAsignacionCargo = null;
 
     this.api.asignarCargo(idmatriz, idCargo).subscribe({
-      next: () => {
+      next: (res: unknown) => {
         this.guardandoCargo = false;
+        const body = res as { creado?: boolean; mensaje?: string };
+        if (body?.creado === false) {
+          const msg = (body.mensaje ?? '').trim();
+          this.notificacionAsignacionCargo =
+            msg || 'No se creó la asignación porque ya existe en el sistema.';
+        } else {
+          this.notificacionAsignacionCargo = null;
+        }
         this.idCargoSeleccionado = 0;
         this.resetBuscadorCargo();
         this.cargarCargosYAsignaciones();
@@ -589,9 +641,9 @@ export class ModalDocumentosComponent implements OnInit {
     });
   }
 
-  // ==========================
-  // ✅ EDITAR METADATA (codigo, urlDoc, urlPdf)
-  // ==========================
+
+  //  EDITAR METADATA (codigo, urlDoc, urlPdf)
+
   editarUrlPdf(doc: Documento) {
     this.errorMsg = null;
     this.modoEditarPdf = true;
@@ -639,9 +691,9 @@ export class ModalDocumentosComponent implements OnInit {
     });
   }
 
-  // ==========================
-  // ✅ COMBOBOX: DOCUMENTOS
-  // ==========================
+
+  //  COMBOBOX: DOCUMENTOS
+
   get documentosFiltrados(): Documento[] {
     const term = (this.busquedaDocumento ?? '').trim().toLowerCase();
     const base = this.documentosCatalogo ?? [];
@@ -712,9 +764,9 @@ export class ModalDocumentosComponent implements OnInit {
     }
   }
 
-  // ==========================
-  // ✅ COMBOBOX: CARGOS
-  // ==========================
+
+  //  COMBOBOX: CARGOS
+
   get cargosFiltrados(): CargoDto[] {
     const term = (this.busquedaCargo ?? '').trim().toLowerCase();
     const base = this.cargosCatalogo ?? [];
@@ -801,7 +853,16 @@ export class ModalDocumentosComponent implements OnInit {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
+    if (this.visorPdfAbierto && event.ctrlKey && (event.key.toLowerCase() === 'p' || event.key.toLowerCase() === 's')) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
     if (event.key === 'Escape' || event.key === 'Esc') {
+      if (this.visorPdfAbierto) {
+        this.cerrarVisorPdfSeguro();
+      }
       this.dropdownDocumentoAbierto = false;
       this.dropdownCargoAbierto = false;
     }

@@ -232,7 +232,7 @@ export class DocumentosComponent implements OnInit {
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
       },
       error: () => {
-        this.errorMsg = 'No se pudo visualizar el PDF seguro.';
+        this.errorMsg = 'No se pudo visualizar el PDF.';
       },
     });
   }
